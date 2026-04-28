@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Manager — n8n + WordPress</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#F0F4F8;color:#222;min-height:100vh}
+    /* Header */
+    header{background:#1F4E79;color:#fff;padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+    header h1{font-size:1.3rem;font-weight:600}
+    header span{font-size:.8rem;opacity:.7}
+    /* Layout */
+    .wrap{max-width:1280px;margin:28px auto;padding:0 20px}
+    /* Card */
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:24px 28px;margin-bottom:24px}
+    .card-title{font-size:1rem;font-weight:700;color:#1F4E79;padding-bottom:10px;border-bottom:2px solid #D6E4F0;margin-bottom:18px}
+    /* Form */
+    .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .fg{display:flex;flex-direction:column;gap:4px}
+    .fg.full{grid-column:1/-1}
+    label{font-size:.78rem;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.04em}
+    input,textarea,select{border:1.5px solid #D0D7E2;border-radius:6px;padding:8px 11px;font-size:.9rem;color:#222;background:#FAFBFC;transition:border-color .2s}
+    input:focus,textarea:focus,select:focus{outline:none;border-color:#2E75B6;background:#fff}
+    textarea{resize:vertical;min-height:72px}
+    /* Buttons */
+    .brow{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+    button{padding:9px 20px;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s}
+    button:hover{opacity:.85}
+    .b-primary {background:#2E75B6;color:#fff}
+    .b-success {background:#375623;color:#fff}
+    .b-warning {background:#9C5700;color:#fff}
+    .b-danger  {background:#C00000;color:#fff}
+    .b-default {background:#E0E6EF;color:#333}
+    /* Toast */
+    #toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:.88rem;font-weight:600;display:none;box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:1000;max-width:340px}
+    .t-ok  {background:#E2EFDA;color:#375623;border-left:4px solid #375623}
+    .t-err {background:#FCE4D6;color:#833C00;border-left:4px solid #C00000}
+    .t-inf {background:#D6E4F0;color:#1F4E79;border-left:4px solid #2E75B6}
+    /* Table */
+    .tbl-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th{background:#2E75B6;color:#fff;padding:10px 13px;text-align:left;font-size:.77rem;text-transform:uppercase;letter-spacing:.05em}
+    td{padding:9px 13px;border-bottom:1px solid #EEF2F7;vertical-align:middle}
+    tr:hover td{background:#F5F9FF}
+    .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.74rem;font-weight:600}
+    .b-yes{background:#E2EFDA;color:#375623}
+    .b-no {background:#FCE4D6;color:#833C00}
+    .act{display:flex;gap:7px}
+    .act button{padding:4px 12px;font-size:.78rem}
+    .empty{text-align:center;padding:36px;color:#999;font-style:italic}
+    /* Stats bar */
+    .stats{display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+    .stat{background:#F0F7FF;border:1px solid #C8DDF4;border-radius:8px;padding:10px 18px;text-align:center}
+    .stat-num{font-size:1.6rem;font-weight:700;color:#1F4E79}
+    .stat-lbl{font-size:.75rem;color:#555;text-transform:uppercase}
+    /* Search */
+    .search-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+    .search-row input{flex:1;min-width:200px}
+    /* Modal */
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:500;justify-content:center;align-items:center}
+    .overlay.open{display:flex}
+    .modal{background:#fff;border-radius:10px;padding:26px 30px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.22)}
+    .modal-title{font-size:1rem;font-weight:700;color:#1F4E79;margin-bottom:18px}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Product Management System</h1>
+  <span>n8n + WooCommerce Integration</span>
+</header>
+
+<div id="toast"></div>
+
+<!-- Edit Modal -->
+<div class="overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">Edit Product</div>
+    <div class="fgrid" id="editGrid"></div>
+    <div class="brow">
+      <button class="b-success" onclick="submitUpdate()">Save Changes</button>
+      <button class="b-default" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="s-total">—</div><div class="stat-lbl">Total Products</div></div>
+    <div class="stat"><div class="stat-num" id="s-synced">—</div><div class="stat-lbl">WP Synced</div></div>
+    <div class="stat"><div class="stat-num" id="s-stock">—</div><div class="stat-lbl">Total Stock</div></div>
+  </div>
+
+  <!-- Create Form -->
+  <div class="card">
+    <div class="card-title">Add New Product</div>
+    <div class="fgrid">
+      <div class="fg"><label>Product Name *</label><input id="f_name" placeholder="e.g. Wireless Headphones"></div>
+      <div class="fg"><label>SKU</label><input id="f_sku" placeholder="e.g. WH-001"></div>
+      <div class="fg"><label>Price</label><input id="f_price" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="fg"><label>Currency</label>
+        <select id="f_currency"><option>USD</option><option>EUR</option><option>GBP</option><option>INR</option><option>AUD</option></select>
+      </div>
+      <div class="fg"><label>Category</label><input id="f_cat" placeholder="e.g. Electronics"></div>
+      <div class="fg"><label>Stock Quantity</label><input id="f_stock" type="number" placeholder="0"></div>
+      <div class="fg"><label>Tags</label><input id="f_tags" placeholder="sale, new, featured"></div>
+      <div class="fg"><label>SEO Title</label><input id="f_seo" placeholder="SEO page title"></div>
+      <div class="fg full"><label>Meta Description</label><input id="f_meta" placeholder="150-160 char SEO description"></div>
+      <div class="fg full"><label>Description</label><textarea id="f_desc" placeholder="Full product description..."></textarea></div>
+      <div class="fg full"><label>Image URL</label><input id="f_img" placeholder="https://example.com/image.jpg"></div>
+    </div>
+    <div class="brow">
+      <button class="b-primary" onclick="createProduct()">+ Create Product</button>
+      <button class="b-default" onclick="clearForm()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Product Table -->
+  <div class="card">
+    <div class="card-title">All Products</div>
+    <div class="search-row">
+      <input id="searchBox" placeholder="Search by name, SKU, or category..." oninput="filterTable()">
+      <button class="b-default" onclick="loadProducts()">Refresh</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>SKU</th><th>Price</th><th>Category</th>
+          <th>Stock</th><th>Tags</th><th>WP Synced</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="tBody"><tr><td colspan="8" class="empty">Loading products...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+// ─────────────────────────────────────────────────
+// CONFIGURATION — replace with your n8n webhook URLs
+// ─────────────────────────────────────────────────
+const WH = {
+  create: 'http://localhost:5678/webhook/product-create/product-create',
+  read:   'http://localhost:5678/webhook/product-create/product-read',
+  update: 'http://localhost:5678/webhook/product-create/product-update',
+  delete: 'http://localhost:5678/webhook/product-create/product-delete',
+};
+// ─────────────────────────────────────────────────
+
+let products = [];
+let editing  = null;
+
+// Toast
+function toast(msg, type='t-inf') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = type; el.style.display = 'block';
+  if (type !== 't-inf') setTimeout(() => el.style.display='none', 3500);
+}
+
+// Stats
+function updateStats(arr) {
+  document.getElementById('s-total').textContent  = arr.length;
+  document.getElementById('s-synced').textContent = arr.filter(p=>p.wp_synced).length;
+  document.getElementById('s-stock').textContent  = arr.reduce((s,p)=>s+parseInt(p.stock_quantity||0),0);
+}
+
+// Render table
+function render(arr) {
+  updateStats(arr);
+  const tb = document.getElementById('tBody');
+  if (!arr.length) { tb.innerHTML='<tr><td colspan="8" class="empty">No products found.</td></tr>'; return; }
+  tb.innerHTML = arr.map((p,i) => `<tr>
+    <td><strong>${p.product_name||p.name||''}</strong><br><small style="color:#888">${p.seo_title||''}</small></td>
+    <td>${p.sku||'—'}</td>
+    <td>${p.currency||'$'} ${parseFloat(p.price||0).toFixed(2)}</td>
+    <td>${p.category||'—'}</td>
+    <td>${p.stock_quantity??'—'}</td>
+    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.tags||'—'}</td>
+    <td><span class="badge ${p.wp_synced?'b-yes':'b-no'}">${p.wp_synced?'Synced':'Pending'}</span></td>
+    <td><div class="act">
+      <button class="b-warning" onclick="openEdit(${i})">Edit</button>
+      <button class="b-danger"  onclick="del(${i})">Delete</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+// Filter
+function filterTable() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  render(products.filter(p =>
+    (p.product_name||'').toLowerCase().includes(q) ||
+    (p.sku||'').toLowerCase().includes(q) ||
+    (p.category||'').toLowerCase().includes(q)
+  ));
+}
+
+// READ
+async function loadProducts() {
+  toast('Fetching products from WordPress...', 't-inf');
+  try {
+    const r = await fetch(WH.read);
+    const d = await r.json();
+    products = d.products || [];
+    render(products);
+    toast('Products loaded', 't-ok');
+  } catch(e) { toast('Load failed: '+e.message,'t-err'); render([]); }
+}
+
+// CREATE
+async function createProduct() {
+  const body = {
+    product_name:    document.getElementById('f_name').value.trim(),
+    sku:             document.getElementById('f_sku').value.trim(),
+    price:           document.getElementById('f_price').value,
+    currency:        document.getElementById('f_currency').value,
+    category:        document.getElementById('f_cat').value.trim(),
+    stock_quantity:  document.getElementById('f_stock').value,
+    tags:            document.getElementById('f_tags').value.trim(),
+    seo_title:       document.getElementById('f_seo').value.trim(),
+    meta_description:document.getElementById('f_meta').value.trim(),
+    description:     document.getElementById('f_desc').value.trim(),
+    image_url:       document.getElementById('f_img').value.trim(),
+  };
+  if (!body.product_name) { toast('Product Name is required','t-err'); return; }
+  toast('Creating product...','t-inf');
+  try {
+    const r = await fetch(WH.create,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(d.success){toast('Product created! WP ID: '+d.wp_product_id,'t-ok');clearForm();loadProducts();}
+    else toast('Error: '+(d.message||'unknown'),'t-err');
+  } catch(e){toast('Failed: '+e.message,'t-err');}
+}
+
+// EDIT MODAL
+function openEdit(i) {
+  editing = products[i];
+  const fields = [
+    {id:'e_name',label:'Product Name',key:'product_name'},
+    {id:'e_sku', label:'SKU',         key:'sku'},
+    {id:'e_price',label:'Price',      key:'price',type:'number'},
+    {id:'e_currency',label:'Currency',key:'currency'},
+    {id:'e_cat', label:'Category',    key:'category'},
+    {id:'e_stock',label:'Stock',      key:'stock_quantity',type:'number'},
+    {id:'e_tags',label:'Tags',         key:'tags'},
+    {id:'e_seo', label:'SEO Title',   key:'seo_title'},
+    {id:'e_meta',label:'Meta Desc',   key:'meta_description'},
+  ];
+  document.getElementById('editGrid').innerHTML =
+    fields.map(f=>`<div class="fg"><label>${f.label}</label><input id="${f.id}" type="${f.type||'text'}" value="${editing[f.key]||''}"></div>`).join('')+
+    `<div class="fg full"><label>Description</label><textarea id="e_desc">${editing.description||''}</textarea></div>`;
+  document.getElementById('editModal').classList.add('open');
+}
+function closeModal(){document.getElementById('editModal').classList.remove('open');editing=null;}
+
+// UPDATE
+async function submitUpdate(){
+  const body = {
+    wp_product_id:   editing.wp_product_id,
+    row_id:          editing.id,
+    product_name:    document.getElementById('e_name').value,
+    sku:             document.getElementById('e_sku').value,
+    price:           document.getElementById('e_price').value,
+    currency:        document.getElementById('e_currency').value,
+    category:        document.getElementById('e_cat').value,
+    stock_quantity:  document.getElementById('e_stock').value,
+    tags:            document.getElementById('e_tags').value,
+    seo_title:       document.getElementById('e_seo').value,
+    meta_description:document.getElementById('e_meta').value,
+    description:     document.getElementById('e_desc').value,
+  };
+  toast('Updating...','t-inf');
+  try{
+    const r=await fetch(WH.update,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.success){toast('Updated','t-ok');closeModal();loadProducts();}
+    else toast('Error: '+d.message,'t-err');
+  }catch(e){toast('Failed: '+e.message,'t-err');}
+}
+
+// DELETE
+async function del(i){
+  const p = products[i];
+  if(!confirm('Delete "'+(p.product_name||p.name)+'"? This cannot be undone.')) return;
+  toast('Deleting...','t-inf');
+  try{
+    const r=await fetch(WH.delete,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wp_product_id:p.wp_product_id,row_id:p.id})});
+    const d=await r.json();
+    if(d.success){toast('Deleted','t-ok');loadProducts();}
+    else toast('Error: '+d.message,'t-err');
+  }catch(e){toast('Failed: '+e.message,'t-err');}
+}
+
+// Clear form
+function clearForm(){
+  ['f_name','f_sku','f_price','f_cat','f_stock','f_tags','f_seo','f_meta','f_desc','f_img']
+   .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f_currency').value='USD';
+}
+
+loadProducts(); // auto-load on page open
+</script>
+</body></html>
